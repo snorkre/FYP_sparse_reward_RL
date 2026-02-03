@@ -84,7 +84,7 @@ class DQNAgent:
 
         self.optim.zero_grad(set_to_none=True)
         loss.backward()
-        nn.utils.clip_grad_norm(self.q.parameter(), self,cfg.grad_clip_norm)
+        nn.utils.clip_grad_norm(self.q.parameters(), self,cfg.grad_clip_norm)
         self.optim_step()
 
         return float(loss.item())
