@@ -9,7 +9,7 @@ import torch
 
 from replay_buffer import ReplayBuffer
 from dqn import DQNAgent, DQNConfig
-from utils import save_reward_plot
+from utils import save_reward_plot, ensure_dir 
 
 
 def linear_epsilon(step: int, eps_start: float, eps_end: float, decay_steps: int) -> float:
@@ -102,14 +102,15 @@ def main() -> None:
 
     env.close()
 
-    os.makedirs("result/models", exist_ok = True)
+    os.makedirs("results/models", exist_ok = True)
     model_path = f"results/models/{args.env}_dqn_ddqn_seed{args.seed}.pt"
+    ensure_dir(os.path.dirname(model_path))
     torch.save(agent.q.state_dict(), model_path)
     print("saved model:", model_path)
 
     csv_path = f"results/rewards/{args.env}_dqn_ddqn_seed{args.seed}.csv"
     os.makedirs(os.path.dirname(csv_path), exist_ok=True)
-    with open(csv_patj, "w", newline="") as f:
+    with open(csv_path, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(["episode", "reward"])
         writer.writerows(enumerate(rewards))
