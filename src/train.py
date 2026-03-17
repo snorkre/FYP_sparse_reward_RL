@@ -1,6 +1,8 @@
 from __future__ import annotations
 import argparse
 
+import os
+import csv
 import gymnasium as gym
 import numpy as np
 import torch
@@ -63,7 +65,7 @@ def main() -> None:
     global_step = 0
 
     for ep in range(args.episodes):
-        obs, info = env.reset(seed=args.seed + ep)
+        obs, info = env.reset()
         done = False
         ep_reward = 0.0
 
@@ -99,6 +101,19 @@ def main() -> None:
             print(f"ep={ep+1:4d} reward={ep_reward:7.2f} avg10={avg10:7.2f}")
 
     env.close()
+
+    os.makedirs("result/models", exist_ok = True)
+    model_path = f"results/models/{args.env}_dqn_ddqn_seed{args.seed}.pt"
+    torch.save(agent.q.state_dict(), model_path)
+    print("saved model:", model_path)
+
+    csv_path = f"results/rewards/{args.env}_dqn_ddqn_seed{args.seed}.csv"
+    os.makedirs(os.path.dirname(csv_path), exist_ok=True)
+    with open(csv_patj, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["episode", "reward"])
+        writer.writerows(enumerate(rewards))
+    print("saved rewards:", csv_path)
 
     out_plot = f"results/plots/{args.env}_dqn_ddqn_seed{args.seed}.png"
     save_reward_plot(rewards, out_plot)
