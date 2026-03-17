@@ -19,7 +19,7 @@ class QNetwork(nn.Module):
             
                
 
-    def forward(self, x: torch.Tensor) -> torch.tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.net(x)
     
 
@@ -62,7 +62,7 @@ class DQNAgent:
     
     def update_target_if_needed(self) -> None:
         if self.step_count % self.cfg.target_update_every == 0:
-            self.q_tgt.loaf_state_dict(self.q.state_dict())
+            self.q_tgt.load_state_dict(self.q.state_dict())
 
     def train_step(self, batch) -> float:
         s, a, r, s2, done = batch
@@ -84,8 +84,8 @@ class DQNAgent:
 
         self.optim.zero_grad(set_to_none=True)
         loss.backward()
-        nn.utils.clip_grad_norm(self.q.parameters(), self.cfg.grad_clip_norm)
-        self.optim_step()
+        nn.utils.clip_grad_norm_(self.q.parameters(), self.cfg.grad_clip_norm)
+        self.optim.step()
 
         return float(loss.item())
     
