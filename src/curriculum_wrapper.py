@@ -11,7 +11,7 @@ def dense_reward(base_reward: float, obs: np.ndarray, terminated: bool) -> float
 def partial_reward(base_reward: float, obs:np.ndarray, terminated: bool) -> float:
     if terminated and abs(base_reward) >= 90:
         return base_reward
-    return 0.0
+    return base_reward * 0.2
 
 def sparse_reward(base_reward: float, obs:np.ndarray, terminated: bool) -> float:
     #stage 3: fully sparse: +100 land, -100 crash 0 otherwise.
