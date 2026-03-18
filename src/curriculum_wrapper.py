@@ -2,29 +2,15 @@ from __future__ import annotations
 import numpy as np
 import gymnasium as gym
 
-# REWARD SHAPING HELPERS
+# STAGE DEFINITION- EACH STAGE IS DIFFERENT LUNARLANDER ENVIRONMENT
 
-def dense_reward(base_reward: float, obs: np.ndarray, terminated: bool) -> float:
-    # stage 1 : standard LunarLander dense reward, unchanged.
-    return base_reward
+STAGE_CONFIGS = {
+    1: dict(gravity=-4.0, enable_wind=False, winder_power=0.0, turbulence_power=0.0),
+    2: dict(gravity=-7.0, enable_wind=False, winder_power=0.0, turbulence_power=0.0),
+    3: dict(gravity=-10.0, enable_wind=True, winder_power=15.0, turbulence_power=1.5),
 
-def partial_reward(base_reward: float, obs:np.ndarray, terminated: bool) -> float:
-    if terminated and abs(base_reward) >= 90:
-        return base_reward
-    return base_reward * 0.2
 
-def sparse_reward(base_reward: float, obs:np.ndarray, terminated: bool) -> float:
-    #stage 3: fully sparse: +100 land, -100 crash 0 otherwise.
-    if terminated and abs(base_reward) >= 90:
-        return base_reward
-    return 0.0
-
-SHAPERS =   {
-    1: dense_reward,
-    2: partial_reward,
-    3: sparse_reward,
 }
-
 STAGE_THRESHOLDS = {
     1: 0.0, 
     2: 50.0,
@@ -35,19 +21,55 @@ STAGE_THRESHOLDS = {
 class CurriculumWrapper(gym.Wrapper):
     def __init__(
             self,
-            env: gym.Env,
+            env_id: str = "LunarLander-v3",
             start_stage: int = 1,
             window: int = 10,
             verbose: bool = True,
     ) -> None:
-        super().__init__(env)
-        assert start_stage in (1,2,3), "start_stage must be 1, 2 or 3"
+        env = self._make_env(env_id, start_stage)
+        super().__init_(env)
+        
+        self.env_id = env_id
         self.stage = start_stage
         self.window = window
         self.verbose = verbose
 
         self._recent_rewards: list[float] = []
         self._current_ep_reward: float = 0.0
+
+    # INTERNAL HELPER
+    def _make_env(self, env_id:str, stage: int) -> gym.Env:
+        #create a LunarLander environment with stage approprirate parameters.
+        cfg = STAGE_CONFIGS[stage]
+        return gym.make(env_id, **cfg)
+    
+    def _advance_stage(self) -> None:
+        # swap the underlying environment for the nest stage.
+        self.stage += 1
+        new_env = self._make_env(self.env_id, self.stage)
+        self.env.close()
+        self.env = new_env
+        self._recent_rewards.clear()
+        if self.verbose:
+            cfg = STAGE_CONFIGS[self.stage]
+            print(f"\n[Curriculum] *** Advanced to Stage {self.stage} ***")
+            print(f"[Curriculum] gravity = {cfg['gravity']},"
+                  f"wind={cfg['enable_wind']},"
+                  f"wind_power={cfg['wind_power']}\n")
+            
+    def _maybe_advance_stage(self) -> None:
+        # check if rolling avg exceeds threshold and advance if so
+        if self.stage >= 3:
+            return
+        if len(self._recent_rewards) < self.window:
+            return
+        
+        avg = float(np.mean(self._recent_rewards))
+        threshold = STAGE_THRESHOLDS[self.stage]
+        
+        if avg > threshold:
+            self._advance_stage()
+
 
 
     # CORE GYM INTERFACE
@@ -59,10 +81,7 @@ class CurriculumWrapper(gym.Wrapper):
     def step(self, action):
         obs, reward, terminated, truncated, info = self.env.step(action)
 
-        # apply stage- appropriate reward shaping
-        shaped = SHAPERS[self.stage](float(reward), obs, bool(terminated))
-
-        self._current_ep_reward += shaped
+        self._current_ep_reward += float(reward)
 
         # at episode end, update rolling avg and maybe advance stage
         if terminated or truncated:
@@ -71,30 +90,10 @@ class CurriculumWrapper(gym.Wrapper):
                 self._recent_rewards.pop(0)
             self._maybe_advance_stage()
 
-        info["original_reward"] = float(reward)
         info["stage"] = self.stage
 
-        return obs, shaped, terminated, truncated, info
+        return obs, reward, terminated, truncated, info
     
-    # STAGE MANAGEMENT
-    
-    def _maybe_advance_stage(self) -> None:
-        # advance to the next stage if the rolling avf exceeds the threshold.
-        if self.stage >= 3:
-            return
-        if len(self._recent_rewards) < self.window:
-            return # not enough data yet
-        
-        avg = float(np.mean(self._recent_rewards))
-        threshold = STAGE_THRESHOLDS[self.stage]
-
-        if avg > threshold:
-            self.stage += 1
-            self._recent_rewards.clear() # reset window for fresh tracking
-            if self.verbose:
-                print(f"[Curriculum] Advanced to Stage {self.stage}"
-                      f"(avg{self.window}={avg:.1f} > {threshold:.1f})")
-                
     # UTILITY
     @property
     def current_stage(self) -> int:
