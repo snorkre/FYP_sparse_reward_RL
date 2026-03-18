@@ -27,7 +27,7 @@ SHAPERS =   {
 
 STAGE_THRESHOLDS = {
     1: 0.0, 
-    2: 100.0,
+    2: 50.0,
 }
 
 # CURRICULUM WRAPPER
