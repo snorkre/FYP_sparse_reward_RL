@@ -27,8 +27,7 @@ def main() -> None:
     args = parser.parse_args()
 
     # environment setup
-    base_env = gym.make(args.env)
-    env = CurriculumWrapper(base_env, start_stage=args.start_stage, window=10, verbose=True)
+    env = CurriculumWrapper(env_id=args.env, start_stage=args.start_stage, window=10, verbose=True)
 
     obs, info = env.reset(seed=args.seed)
     env.action_space.seed(args.seed)
@@ -71,12 +70,12 @@ def main() -> None:
     stages_log = [] # track which stage each episode was in 
     global_step = 0
 
-    # TRAINIG LOOP
+    # TRAIN LOOP
     for ep in range(args.episodes):
         obs, info = env.reset()
         done = False
         ep_reward = 0.0
-        eps_stage = env.current_stage
+        ep_stage = env.current_stage
 
         while not done:
             eps = linear_epsilon(global_step, eps_start, eps_end, decay_steps)
