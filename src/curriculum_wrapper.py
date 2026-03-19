@@ -27,7 +27,7 @@ class CurriculumWrapper(gym.Wrapper):
             verbose: bool = True,
     ) -> None:
         env = self._make_env(env_id, start_stage)
-        super().__init_(env)
+        super().__ini__(env)
         
         self.env_id = env_id
         self.stage = start_stage
