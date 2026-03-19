@@ -5,9 +5,9 @@ import gymnasium as gym
 # STAGE DEFINITION- EACH STAGE IS DIFFERENT LUNARLANDER ENVIRONMENT
 
 STAGE_CONFIGS = {
-    1: dict(gravity=-4.0, enable_wind=False, winder_power=0.0, turbulence_power=0.0),
-    2: dict(gravity=-7.0, enable_wind=False, winder_power=0.0, turbulence_power=0.0),
-    3: dict(gravity=-10.0, enable_wind=True, winder_power=15.0, turbulence_power=1.5),
+    1: dict(gravity=-4.0, enable_wind=False, wind_power=0.0, turbulence_power=0.0),
+    2: dict(gravity=-7.0, enable_wind=False, wind_power=0.0, turbulence_power=0.0),
+    3: dict(gravity=-10.0, enable_wind=True, wind_power=15.0, turbulence_power=1.5),
 
 
 }
