@@ -104,7 +104,7 @@ class HERReplayBuffer:
         # sparse reward: +1.0 if lander is within threshold of hindsight goal, else 0.
         pos = obs[:2]
         dist = float(np.linalg.norm(pos - goal))
-        return 1.0 if dist < 0.15 else 0.0
+        return -dist
         
 
 

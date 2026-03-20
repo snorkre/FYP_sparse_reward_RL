@@ -122,7 +122,7 @@ def main() -> None:
     ensure_dir(os.path.dirname(csv_path))
     with open(csv_path, "w", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(["episode", "rewards", "stages"])
+        writer.writerow(["episode", "reward", "stages"])
         for i, (r, s) in enumerate(zip(rewards, stages_log)):
             writer.writerow([i, r, s])
     print("saved rewards:", csv_path)
