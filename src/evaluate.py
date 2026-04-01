@@ -11,8 +11,8 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 ENV        = "LunarLander-v3"
 SEEDS      = [0, 1, 2]
-RESULTS_DIR = os.path.join(BASE_DIR, "results", "rewards")
-PLOTS_DIR   = os.path.join(BASE_DIR, "results", "plots")
+RESULTS_DIR = "/content/drive/MyDrive/FYP/results/rewards"
+PLOTS_DIR   = "/content/drive/MyDrive/FYP/results/plots"
 MA_WINDOW  = 20   # moving average window for smoothing
 
 METHODS = {
