@@ -1,19 +1,3 @@
-"""
-evaluate.py
-===========
-Evaluation and comparison pipeline for FYP experiments.
-Loads reward CSVs for all three arms, computes mean/std across seeds,
-and produces a final comparison plot suitable for the report.
-
-Usage (Colab or local):
-    python src/evaluate.py
-
-Expects results at:
-    results/rewards/LunarLander-v3_dqn_ddqn_seed{0,1,2}.csv
-    results/rewards/LunarLander-v3_curriculum_seed{0,1,2}.csv
-    results/rewards/LunarLander-v3_her_seed{0,1,2}.csv
-"""
-
 from __future__ import annotations
 import os
 import numpy as np
@@ -21,15 +5,14 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 
-
-# ---------------------------------------------------------------------------
 # Configuration
-# ---------------------------------------------------------------------------
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 ENV        = "LunarLander-v3"
 SEEDS      = [0, 1, 2]
-RESULTS_DIR = "results/rewards"
-PLOTS_DIR   = "results/plots"
+RESULTS_DIR = os.path.join(BASE_DIR, "results", "rewards")
+PLOTS_DIR   = os.path.join(BASE_DIR, "results", "plots")
 MA_WINDOW  = 20   # moving average window for smoothing
 
 METHODS = {
@@ -39,16 +22,12 @@ METHODS = {
 }
 
 COLOURS = {
-    "Baseline (DQN + DDQN)": "#2196F3",   # blue
-    "Curriculum Learning":    "#4CAF50",   # green
-    "HER (DQN + HER)":        "#F44336",   # red
+    "Baseline (DQN + DDQN)": "#2196F3",   
+    "Curriculum Learning":    "#4CAF50",   
+    "HER (DQN + HER)":        "#F44336",   
 }
 
-
-# ---------------------------------------------------------------------------
 # Helpers
-# ---------------------------------------------------------------------------
-
 def moving_average(x: np.ndarray, window: int) -> np.ndarray:
     """Compute a simple moving average."""
     if len(x) < window:
@@ -107,10 +86,7 @@ def align_and_aggregate(arrays: list[np.ndarray]) -> tuple[np.ndarray, np.ndarra
     return episodes, mean, std
 
 
-# ---------------------------------------------------------------------------
 # Main evaluation
-# ---------------------------------------------------------------------------
-
 def run_evaluation() -> None:
     os.makedirs(PLOTS_DIR, exist_ok=True)
 
@@ -164,7 +140,7 @@ def run_evaluation() -> None:
             "Episodes to >100":     speed if speed else "Not reached",
         })
 
-    # --- Plot formatting ---
+    # Plot formatting 
     ax.axhline(y=200, color="black", linestyle="--", linewidth=1, alpha=0.5, label="Solved threshold (200)")
     ax.axhline(y=0,   color="grey",  linestyle=":",  linewidth=0.8, alpha=0.4)
 
