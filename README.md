@@ -1,99 +1,87 @@
-Reinforcement Learning for Sparse Reward Environments
+# Overcoming Sparse Rewards in Reinforcement Learning: A Comparative Analysis of Curriculum Learning and Hindsight Experience Replay
 
-Overview:
-This project investigates the performance of Deep Q-Network (DQN) variants in sparse reward environments, using LunarLander-v3 from Gymnasium.
+## Project Overview
 
-Three approaches are implemented and compared:
-1) Baseline: DQN with Double DQN (DDQN)
-2) Curriculum Learning (CL)
-3) Hindsight Experience Replay (HER)
+This project investigates and compares reinforcement learning approaches for solving the `LunarLander-v3` environment from the Gymnasium library. Specifically, it evaluates:
+* **Deep Q-Network (DQN) / Double DQN (DDQN)** (Baseline)
+* **Curriculum Learning** (Progressive difficulty)
+* **Hindsight Experience Replay (HER)**
 
-The goal is to evaluate how these methods improve learning efficiency, stability, and final performance.
+The goal is to analyse performance under sparse reward conditions and assess learning stability and sample efficiency across multiple random seeds.
 
-Methods:
-1) Baseline (DQN + DDQN)
-    A standard Deep Q-Network enhanced with Double DQN to reduce overestimation bias.
-2) Curriculum Learning
-    The environment difficulty is progressively increased:
-        Stage 1: Low gravity (easy)
-        Stage 2: Medium gravity
-        Stage 3: High gravity with wind (hard)
-    Progression is performance-based, using a rolling average reward threshold.
+## Methods Summary
+* **DQN/DDQN:** The baseline deep reinforcement learning approach using experience replay and target networks.
+* **Curriculum Learning:** A manual approach that gradually increases task difficulty (modifying gravity and wind) to stabilise learning.
+* **HER:** An algorithmic approach that re-labels failed experiences as successful hindsight goals to densify the reward signal.
 
-3) Hindsight Experience Replay (HER)
-    Transitions are relabelled with alternative goals to convert failed episodes into useful learning signals.
-        i) Goal-conditioned state: [state, goal]
-        ii) Future strategy used for relabelling
+## Installation
 
-Project Structure
-FYP/
-│
-├── src/
-│   ├── dqn.py
-│   ├── replay_buffer.py
-│   ├── her_replay_buffer.py
-│   ├── curriculum_wrapper.py
-│   ├── train.py
-│   ├── train_cl.py
+Ensure you have Python 3.8+ installed. Clone the repository and install the required dependencies:
+
+```bash
+git clone https://github.com/snorkre/FYP_sparse_reward_RL 
+cd FYP_sparse_reward_RL
+pip install -r requirements.txt
+```
+
+## How to Run Experiments
+
+All experiments are reproducible using fixed random seeds (0, 1, and 2). This project is designed to run locally without reliance on Google Colab. 
+
+### 1. DQN + DDQN Baseline
+```bash
+python src/train.py --env LunarLander-v3 --episodes 1000 --seed 0
+python src/train.py --env LunarLander-v3 --episodes 1000 --seed 1
+python src/train.py --env LunarLander-v3 --episodes 1000 --seed 2
+```
+
+### 2. Curriculum Learning
+```bash
+python src/train_curriculum.py --episodes 1000 --seed 0
+python src/train_curriculum.py --episodes 1000 --seed 1
+python src/train_curriculum.py --episodes 1000 --seed 2
+```
+
+### 3. Hindsight Experience Replay (HER)
+```bash
+python src/train_her.py --episodes 1000 --seed 0
+python src/train_her.py --episodes 1000 --seed 1
+python src/train_her.py --episodes 1000 --seed 2
+```
+
+## Evaluation
+
+The project includes evaluation scripts for statistical comparison, reward curve analysis, and statistical significance testing (Welch's t-test).
+
+To generate the comparison plots and compute summary statistics:
+```bash
+python src/evaluate.py
+python src/t_test.py
+```
+
+## Repository Structure
+
+All outputs are generated directly into the local `results/` directory.
+
+```text
+FYP_sparse_reward_RL/
+├── src/  
+|   ├── curriculum_wrapper.py
+|   ├── dqn.py
+|   ├── evaluate.py
+|   ├── her_replay_buffer.py
+|   ├── replay_buffer.py             
+│   ├── t_test.py
+│   ├── train_curriculum.py
 │   ├── train_her.py
-│   ├── evaluate.py
+│   ├── train.py
 │   └── utils.py
-│
-├── results/
-│   ├── models/
-│   ├── rewards/
-│   └── plots/
-│
+├── results/              # Auto-generated during training
+│   ├── plots/            # Training curves and comparison graphs
+│   ├── rewards/              # Episode rewards and logged metrics
+│   └── models/           # Saved trained agent weights (.pt files)
+├── requirements.txt      # Project dependencies
 └── README.md
-
-
-Installation:
-Install required dependencies:
-pip install numpy torch gymnasium matplotlib pandas
-
-
-Training:
-Baseline (DQN + DDQN)
-python src/train.py --env LunarLander-v3 --episodes 600
-
-Curriculum Learning:
-python src/train_cl.py --env LunarLander-v3 --episodes 1000
-
-HER:
-python src/train_her.py --env LunarLander-v3 --episodes 1000
-
-
-Evaluation:
-    Run evaluation across multiple seeds:
-    python src/evaluate.py
-
-This will:
-    Load reward logs from all methods
-    Compute mean and standard deviation
-    Generate comparison plots
-    Output a summary table
-
-Results:
-Results are saved in:
-    results/rewards/   # CSV logs
-    results/plots/     # Training curves
-    results/models/    # Trained models
-
-Evaluation includes:
-    Mean ± standard deviation across seeds
-    Moving average smoothing
-    Sample efficiency comparison (episodes to reach threshold)
-
-Key Findings:
-    Curriculum Learning improves early training stability and learning speed
-    HER improves sample efficiency by learning from failed trajectories
-    Baseline DQN provides a strong reference but struggles in sparse settings
-
-Notes:
-    Experiments are run with multiple random seeds for robustness
-    All methods use the same network architecture and hyperparameters for fairness
-    Results may vary slightly due to stochastic training
-
-Author
-Saniska Dangol
-
+```
+## Author
+    Saniska Dangol
