@@ -11,16 +11,18 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 ENV        = "LunarLander-v3"
 SEEDS      = [0, 1, 2]
-RESULTS_DIR = "/content/drive/MyDrive/FYP/results/rewards"
-PLOTS_DIR   = "/content/drive/MyDrive/FYP/results/plots"
+RESULTS_DIR = os.path.join(BASE_DIR, "results", "rewards")
+PLOTS_DIR   = os.path.join(RESULTS_DIR, "plots", "plots")
 MA_WINDOW  = 20   # moving average window for smoothing
 
+# Methods being compared
 METHODS = {
     "Baseline (DQN + DDQN)": f"{ENV}_dqn_ddqn",
     "Curriculum Learning":    f"{ENV}_curriculum",
     "HER (DQN + HER)":        f"{ENV}_her",
 }
 
+# Consistent colours for readability
 COLOURS = {
     "Baseline (DQN + DDQN)": "#2196F3",   
     "Curriculum Learning":    "#4CAF50",   
@@ -29,7 +31,9 @@ COLOURS = {
 
 # Helpers
 def moving_average(x: np.ndarray, window: int) -> np.ndarray:
-    """Compute a simple moving average."""
+    """
+    Smooth reward curve to reduce variance and highlight trends.
+    """
     if len(x) < window:
         return x
     kernel = np.ones(window) / window
@@ -40,7 +44,6 @@ def load_rewards(method_key: str, seeds: list[int]) -> list[np.ndarray]:
     """Load reward arrays for all seeds of a given method.
     
     Handles both 'reward' and 'rewards' column names for robustness.
-    Returns a list of 1-D numpy arrays, one per seed.
     """
     arrays = []
     for seed in seeds:
@@ -50,8 +53,9 @@ def load_rewards(method_key: str, seeds: list[int]) -> list[np.ndarray]:
             continue
         df = pd.read_csv(path)
 
-        # Normalise column name: handle 'reward' or 'rewards'
+        # Normalise column names
         df.columns = [c.strip().lower() for c in df.columns]
+
         if "reward" in df.columns:
             rewards = df["reward"].values.astype(np.float32)
         elif "rewards" in df.columns:
@@ -67,16 +71,14 @@ def load_rewards(method_key: str, seeds: list[int]) -> list[np.ndarray]:
 
 def align_and_aggregate(arrays: list[np.ndarray]) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Align arrays to same length (min length), compute mean and std.
-    
-    Returns:
-        episodes: episode indices
-        mean:     mean reward per episode
-        std:      std reward per episode
+    Ensures fair comparison across seeds.
     """
     if len(arrays) == 0:
         raise ValueError("No reward arrays to aggregate.")
 
     min_len = min(len(a) for a in arrays)
+
+    # Trim all runs to shortest length
     trimmed = np.stack([a[:min_len] for a in arrays], axis=0)  # (n_seeds, n_episodes)
 
     mean = np.mean(trimmed, axis=0)
@@ -104,17 +106,17 @@ def run_evaluation() -> None:
 
         episodes, mean, std = align_and_aggregate(arrays)
 
-        # Apply moving average smoothing
+        # Smooth curves for clearer comparison
         mean_smooth = moving_average(mean, MA_WINDOW)
         std_smooth  = moving_average(std,  MA_WINDOW)
         ep_smooth   = episodes[MA_WINDOW - 1:]  # align x-axis after convolution
 
         colour = COLOURS[label]
 
-        # Plot mean curve
+        # Plot mean performance
         ax.plot(ep_smooth, mean_smooth, label=label, color=colour, linewidth=2)
 
-        # Plot shaded std region
+        # Plot uncertainty
         ax.fill_between(
             ep_smooth,
             mean_smooth - std_smooth,

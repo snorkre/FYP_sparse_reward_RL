@@ -3,10 +3,11 @@ import numpy as np
 from collections import deque
 import random
 
-# HER REPLAY BUFFER
 
 class HERReplayBuffer:
-    
+    """
+    Hindsight Experience Replay (HER) buffer for goal-conditioned tasks.
+    Extends standard replay buffer by storing goal-conditioned transitions and applying HER relabeling at episode end."""
     def __init__(
             self,
             capacity:int,
@@ -16,11 +17,15 @@ class HERReplayBuffer:
     ) -> None:
             self.capacity = capacity
             self.her_ratio = her_ratio
+
+            # Original task goal (eg. landing pad position)
             self.goal = np.array(goal if goal is not None else [ 0.0, 0.0], dtype=np.float32)
+
+            # Random generators for reproducibility
             self.rng = random.Random(seed)
             self.np_rng = np.random.default_rng(seed)
 
-            # main buffer stores goal- conditioned transition
+            # Main replay buffer stores goal-conditioned transitions
             self.buffer: deque[tuple] = deque (maxlen=capacity)
             
             # episode buffer stores raw transitions for current episode
@@ -29,10 +34,12 @@ class HERReplayBuffer:
     def __len__(self) -> int:
         return len(self.buffer)
         
-        # episode management
+        # Episode management
 
     def store_transition(self, s, a, r, s2, done) -> None:
-        # store a raw transition during an episode (before HER relabeling)
+        """
+        Store a raw transition during an episode (before HER relabeling)
+        """
         self._episode.append((
             np.array(s, dtype=np.float32),
             int(a),
@@ -42,22 +49,24 @@ class HERReplayBuffer:
         ))
 
     def finish_episode(self) -> None:
-        # called at episode end. Applies HER and pushes all transition to buffer
+        """
+        Called at episode end. Applies HER and pushes all transition to buffer
+        """
         if len(self._episode) == 0:
             return
             
-        # achieved goal = lander position at the end of the episode 
+        # Achieved goal = lander position at the end of the episode 
         final_obs = self._episode[-1][3]
         achieved_goal = final_obs[:2].copy()
 
         for i, (s, a, r, s2, done) in enumerate(self._episode):
-            # original transition with real goal 
+            # Original transition with real goal 
             s_gc = self._concat_goal(s, self.goal)
             s2_gc = self._concat_goal(s2, self.goal)
             self.buffer.append((s_gc, a, r, s2_gc, done))
 
-            # HER relablled transitions
-            # use "future" strategy: pick random future states as hindsight goals
+            # HER relabelling
+            # Future strategy: sampling future states as alternative goals
             future_indices = list(range(i, len(self._episode)))
             sampled = self.np_rng.choice(
                 future_indices,
@@ -66,24 +75,30 @@ class HERReplayBuffer:
             )
 
             for idx in sampled:
+                # Use future achieved goal as hindsight goal
                 hindsight_goal = self._episode[idx][3][:2].copy() # future x, y
 
+                # Create goal-conditioned states
                 s_h = self._concat_goal(s, hindsight_goal)
                 s2_h = self._concat_goal(s2, hindsight_goal)
 
-                # recompute reward: +1 if lander is close to hindsight goal
-
+                # Recompute reward: +1 if lander is close to hindsight goal
                 r_h = self._compute_her_reward(s2, hindsight_goal)
+
+                # Recompute reward based on hindsight goal
                 done_h = bool(r_h > 0)
 
                 self.buffer.append((s_h, a, r_h, s2_h, done_h))
-                    
+
+        # Clear episode buffer after processing         
         self._episode.clear()
 
-    # sampling
+    # Sampling
 
     def sample(self, batch_size: int):
-        # sample a random batch of goal conditioned transitions
+        """
+        Samples a batch of goal-conditioned transitions for training.
+        Training remains off-policy, enabling learning from both real and hindsight experiences."""
         batch = self.rng.sample(self.buffer, batch_size)
         s, a, r, s2, done = zip(*batch)
         return (
@@ -94,14 +109,17 @@ class HERReplayBuffer:
             np.array(done, dtype=np.float32),
         )
         
-        # helper
+        # Helper
 
     def _concat_goal(self, obs: np.ndarray, goal:np.ndarray) -> np.ndarray:
-        # concatenate observation with goal to create goal conditioned obs
+        """
+        Concatenate observation with goal to create goal conditioned states. This allows the Q-network to learn Q(s, a, g)
+        """
         return np.concatenate([obs, goal], axis=0)
         
     def _compute_her_reward(self, obs: np.ndarray, goal:np.ndarray) -> float:
-        # sparse reward: +1.0 if lander is within threshold of hindsight goal, else 0.
+        """
+        Compute reward for HER relabelled transition based on distance to hindsight goal. Encourages agent to reach arbitrary goals generated by HER."""
         pos = obs[:2]
         dist = float(np.linalg.norm(pos - goal))
         return -dist

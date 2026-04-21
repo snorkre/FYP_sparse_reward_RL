@@ -1,8 +1,3 @@
-"""
-Statistical significance testing for FYP results.
-Welch's t-test (unequal variance) on final mean reward (last 50 episodes).
-"""
-
 import numpy as np
 from scipy import stats
 

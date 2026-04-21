@@ -13,6 +13,9 @@ from curriculum_wrapper import CurriculumWrapper
 from utils import save_reward_plot, ensure_dir
 
 def linear_epsilon(step: int, eps_start: float, eps_end: float, decay_steps: int) -> float:
+    """
+    Linearly decay epsilon over time.
+    Higher epsilon encourages exploration in early training, while lower epsilon promotes exploitation as training progresses."""
     if step >= decay_steps:
         return eps_end
     t = step/ float(decay_steps)
@@ -26,12 +29,14 @@ def main() -> None:
     parser.add_argument("--start_stage", type=int, default=1, choices=[1, 2, 3])
     args = parser.parse_args()
 
-    # environment setup
+    # Environment setup
+    # CurriculumWrapper dynamically adjusts task difficulty
     env = CurriculumWrapper(env_id=args.env, start_stage=args.start_stage, window=10, verbose=True)
 
     obs, info = env.reset(seed=args.seed)
     env.action_space.seed(args.seed)
 
+    # Ensure compatibility with DQN assumptions
     assert isinstance(env.observation_space, gym.spaces.Box)
     assert isinstance (env.action_space, gym.spaces.Discrete)
 
@@ -41,7 +46,8 @@ def main() -> None:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
-    # AGENT & BUFFER
+    # Agent and configs
+    # Shared configuration across all curriculum stages
     cfg = DQNConfig(
         gamma= 0.99,
         lr=1e-3,
@@ -52,6 +58,7 @@ def main() -> None:
         grad_clip_norm=10.0,
     )
 
+    # Single agent trained across all stages (knowledge transfer via weights)
     agent = DQNAgent(
         obs_dim=obs_dim,
         n_actions=n_actions,
@@ -60,30 +67,37 @@ def main() -> None:
         seed=args.seed,
     )                 
 
+    # Replay buffer shared across curriculum stages
     buffer = ReplayBuffer(capacity=cfg.buffer_size, seed=args.seed)
 
+    # Exploration setup
     eps_start, eps_end = 1.0, 0.05
     decay_steps = 20_000
     
 
     rewards = []
     stages_log = [] # track which stage each episode was in 
-    global_step = 0
+    global_step = 0 # used for epsilon decay and target updates
 
-    # TRAIN LOOP
+    # Training loop
     for ep in range(args.episodes):
         obs, info = env.reset()
         done = False
         ep_reward = 0.0
+        
+        # Record current stage at start of episode
         ep_stage = env.current_stage
 
         while not done:
+            # Epsilon-greedy action selection
             eps = linear_epsilon(global_step, eps_start, eps_end, decay_steps)
             action = agent.act(obs.astype(np.float32), eps=eps)
 
+            # Environment interaction
             obs2, reward, terminated, truncated, info = env.step(action)
             done = bool(terminated or truncated)
 
+            # Store transition for off-policy learning
             buffer.push(
                 obs.astype(np.float32),
                 int(action),
@@ -94,9 +108,12 @@ def main() -> None:
 
             obs = obs2
             ep_reward += float(reward)
+
+            # Global step count for epsilon decay and target network updates
             global_step += 1
             agent.step_count = global_step
-
+            
+            # Train only after sufficient exploration data is collected
             if len(buffer) >= cfg.min_buffer:
                 batch = buffer.sample(cfg.batch_size)
                 agent.train_step(batch)
@@ -105,19 +122,20 @@ def main() -> None:
         rewards.append(ep_reward)
         stages_log.append(ep_stage)
         
+        # Logging training progress and curriculum stage
         if (ep + 1) % 10 == 0:
             avg10 = np.mean(rewards[-10:])
             print(f"ep={ep+1:4d} stage={env.current_stage} reward={ep_reward:7.2f} avg10={avg10:7.2f}")
 
     env.close()
     
-    # SAVE MODEL
+    # Save model
     model_path = f"results/models/{args.env}_curriculum_seed{args.seed}.pt"
     ensure_dir(os.path.dirname(model_path))
     torch.save(agent.q.state_dict(), model_path)
     print("Saved model:", model_path)
 
-    # SAVE REWARDS CSV (WITH STAGE COLUMN)
+    # Save rewards
     csv_path = f"results/rewards/{args.env}_curriculum_seed{args.seed}.csv"
     ensure_dir(os.path.dirname(csv_path))
     with open(csv_path, "w", newline="") as f:
@@ -127,7 +145,7 @@ def main() -> None:
             writer.writerow([i, r, s])
     print("saved rewards:", csv_path)
 
-    # SAVE PLOT
+    # Save plot
     out_plot = f"results/plots/{args.env}_curriculum_seed{args.seed}.png"
     save_reward_plot(rewards, out_plot)
     print("saved plot:", out_plot)

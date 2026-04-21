@@ -12,6 +12,9 @@ from her_replay_buffer import HERReplayBuffer
 from utils import save_reward_plot, ensure_dir
 
 def linear_epsilon(step: int, eps_start: float, eps_end: float, decay_steps: int) -> float:
+    """
+    Linearly decay epsilon for epsilon-greedy exploration.
+    Higher epsilon encourages exploration in early training, while lower epsilon promotes exploitation as training progresses."""
     if step >= decay_steps:
         return eps_end
     t = step / float(decay_steps)
@@ -26,7 +29,7 @@ def main() -> None:
                         help="HER hindsight transitions per real transition")
     args = parser.parse_args()
 
-    # environment 
+    # Environment 
     env = gym.make(args.env)
     obs, info = env.reset(seed = args.seed)
     env.action_space.seed(args.seed)
@@ -34,7 +37,7 @@ def main() -> None:
     assert isinstance(env.observation_space, gym.spaces.Box)
     assert isinstance(env.action_space, gym.spaces.Discrete)
 
-     # goal conditioned obs: original 8-dims obs + 2-dim goal = 10-dim
+     # Goal conditioned obs: original 8-dims obs + 2-dim goal = 10-dim
     base_obs_dim = int(np.prod(env.observation_space.shape))
     goal_dim = 2
     obs_dim = base_obs_dim + goal_dim
@@ -44,7 +47,7 @@ def main() -> None:
     print(f"using device: {device}")
     print(f"obs dim (goal-conditioned): {obs_dim}, Actions: {n_actions}")
 
-    # agent (same DQN + DDQN as arm A, just wider input)
+    # Agent (same DQN + DDQN as arm A, just wider input)
     cfg = DQNConfig(
         gamma=0.99,
         lr=1e-3,
@@ -71,7 +74,7 @@ def main() -> None:
         seed=args.seed,
     )
 
-    # fixed goal (landing pad)
+    # Fixed goal (landing pad)
     goal = np.array([0.0, 0.0], dtype=np.float32)
 
     eps_start, eps_end = 1.0, 0.05
@@ -80,23 +83,25 @@ def main() -> None:
     rewards = []
     global_step = 0
     
-    # tranning loop
+    # Training loop
     for ep in range(args.episodes):
         obs, info = env.reset()
         done = False
         ep_reward = 0.0
 
         while not done:
-            # append goal to observation
+            # Create goal-conditioned observation 
             obs_gc = np.concatenate([obs.astype(np.float32), goal])
 
+            # Epsilon-greedy action selection
             eps = linear_epsilon(global_step, eps_start, eps_end, decay_steps)
             action = agent.act(obs_gc, eps=eps)
 
+            # Step environment
             obs2, reward, terminated, truncated, info = env.step(action)
             done = bool(terminated or truncated)
 
-            # store raw transition in episode buffer (hHER relables at episode end)
+            # Store raw transition (HER applied later at episode end)
             buffer.store_transition(
                 obs.astype(np.float32),
                 int(action),
@@ -107,18 +112,21 @@ def main() -> None:
 
             obs = obs2
             ep_reward += float(reward)
+
+            # Global step controls epsilon decay and target network updates
             global_step += 1
             agent.step_count = global_step
 
-            # train if enough samples in buffer
+            # Train if enough samples in buffer
             if len(buffer) >= cfg.min_buffer:
                 batch = buffer.sample(cfg.batch_size)
                 agent.train_step(batch)
                 agent.update_target_if_needed()
                 
-
-        # end of episode: apply HER relabelling
+        # HER relabelling
+        # Convert episode into additional learning signals
         buffer.finish_episode()
+
         rewards.append(ep_reward)
 
         if (ep + 1) % 10 == 0:
@@ -128,13 +136,13 @@ def main() -> None:
             
     env.close()
 
-    # save model 
+    # Save model 
     model_path = f"results/models/{args.env}_her_seed{args.seed}.pt"
     ensure_dir(os.path.dirname(model_path))
     torch.save(agent.q.state_dict(), model_path)
     print("saved model:", model_path)
 
-    #save rewards CSV
+    # Save rewards CSV
     csv_path = f"results/rewards/{args.env}_her_seed{args.seed}.csv"
     ensure_dir(os.path.dirname(csv_path))
     with open(csv_path, "w", newline="") as f:
@@ -143,7 +151,7 @@ def main() -> None:
         writer.writerows(enumerate(rewards))
     print("saved rewards:", csv_path)
 
-    # save plot 
+    # Save plot 
     out_plot = f"results/plots/{args.env}_her_seed{args.seed}.png"
     save_reward_plot(rewards, out_plot)
     print("Saved plot:", out_plot)
