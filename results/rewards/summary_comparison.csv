@@ -1,0 +1,4 @@
+Method,Final Mean (last 50),Final Std (last 50),Peak Mean,Episodes to >100
+Baseline (DQN + DDQN),179.5,74.3,228.2,178
+Curriculum Learning,24.6,94.9,146.0,247
+HER (DQN + HER),-67.6,123.4,174.6,202
