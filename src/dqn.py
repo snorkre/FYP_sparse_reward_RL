@@ -7,11 +7,11 @@ import torch.nn as nn
 import torch.optim as optim
 
 class QNetwork(nn.Module):
-    def __init__(self, obs_dim: int, n_actions: int, hidden: int = 128) -> None:
+    def __init__(self, obs_dim: int, n_actions: int, hidden: int = 128) -> None: 
         super().__init__()
         self.net = nn.Sequential(
             nn.Linear(obs_dim, hidden),
-            nn.ReLU(),
+            nn.ReLU(), 
             nn.Linear(hidden, hidden),
             nn.ReLU(),
             nn.Linear (hidden, n_actions),
@@ -64,7 +64,7 @@ class DQNAgent:
         if self.step_count % self.cfg.target_update_every == 0:
             self.q_tgt.load_state_dict(self.q.state_dict())
 
-    def train_step(self, batch) -> float:
+    def train_step(self, batch) -> float: 
         s, a, r, s2, done = batch
         s = torch.tensor(s, dtype=torch.float32, device=self.device)
         a = torch.tensor(a, dtype=torch.int64, device=self.device). unsqueeze(1)
@@ -72,7 +72,7 @@ class DQNAgent:
         s2 = torch.tensor(s2, dtype=torch.float32, device=self.device)
         done = torch.tensor(done, dtype=torch.float32, device=self.device).unsqueeze(1)
 
-        q_sa = self.q(s).gather(1, a)
+        q_sa = self.q(s).gather(1, a) # Q value for action taken in batch
 
         #Double DQN target
         with torch.no_grad():
