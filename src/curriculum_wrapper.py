@@ -12,8 +12,8 @@ STAGE_CONFIGS = {
 
 }
 STAGE_THRESHOLDS = {
-    1: 0.0, 
-    2: 50.0,
+    1: 0.0, # advance from stage 1 to 2, need to avg any positive reward (i.e. land at all)
+    2: 50.0, # advance from stage 2 to 3, need to avg 50 reward (i.e. land softly and near the pad)
 }
 
 # CURRICULUM WRAPPER
